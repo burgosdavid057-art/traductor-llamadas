@@ -1,0 +1,15 @@
+# ─────────────────────────────────────────────────────────────
+#  Traductor de llamadas en tiempo real (local)
+#  IMPORTANTE: instala torch CON CUDA *antes* que el resto.
+#  Ver README.md → sección Instalación.
+# ─────────────────────────────────────────────────────────────
+
+faster-whisper>=1.0.3      # STT (voz -> texto) sobre CTranslate2
+ollama>=0.3.0              # cliente para tu Ollama local (traducción)
+coqui-tts>=0.24.1         # fork mantenido de Coqui TTS -> XTTS-v2 (clona tu voz)
+soundcard>=0.4.3          # captura de micrófono y loopback del sistema en Windows
+soundfile>=0.12.1         # guardar/leer WAV (muestra de tu voz)
+webrtcvad-wheels>=2.0.14  # detección de fin de habla (VAD) — wheels precompilados (no requiere Visual Studio)
+numpy>=1.24,<2.0          # <2.0 por compatibilidad con coqui-tts
+transformers>=4.57,<5     # XTTS rompe con transformers 5.x (falta isin_mps_friendly)
+customtkinter>=5.2.2      # interfaz gráfica (app.py)
