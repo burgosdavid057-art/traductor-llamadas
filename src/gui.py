@@ -22,7 +22,7 @@ GRIS = "#8a8a8a"
 class App(ctk.CTk):
     def __init__(self):
         super().__init__()
-        self.title("Traductor de Llamadas - local")
+        self.title("EchoLingua - Traductor de llamadas")
         self.geometry("860x640")
         self.minsize(720, 560)
 
@@ -43,8 +43,12 @@ class App(ctk.CTk):
     def _construir(self, nombres, mics, spks):
         cab = ctk.CTkFrame(self)
         cab.pack(fill="x", padx=16, pady=(16, 8))
-        ctk.CTkLabel(cab, text="Traductor de Llamadas en tiempo real",
-                     font=ctk.CTkFont(size=20, weight="bold")).pack(side="left", padx=12, pady=10)
+        titulo = ctk.CTkFrame(cab, fg_color="transparent")
+        titulo.pack(side="left", padx=12, pady=6)
+        ctk.CTkLabel(titulo, text="EchoLingua",
+                     font=ctk.CTkFont(size=22, weight="bold")).pack(anchor="w")
+        ctk.CTkLabel(titulo, text="Traductor de llamadas en tiempo real",
+                     text_color=GRIS, font=ctk.CTkFont(size=12)).pack(anchor="w")
         self.lbl_estado = ctk.CTkLabel(cab, text="Detenido", text_color=GRIS,
                                        font=ctk.CTkFont(size=14, weight="bold"))
         self.lbl_estado.pack(side="right", padx=12)

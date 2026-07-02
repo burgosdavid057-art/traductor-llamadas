@@ -1,4 +1,18 @@
+# Claude / IA
+CLAUDE.md
+.claude/
+
+# Secretos y entorno
 .env
+.env.*
+!.env.example
+*.pem
+*.key
+*.p12
+id_rsa
+id_rsa.pub
+*.secret
+
 *.pyc
 __pycache__/
 .venv/

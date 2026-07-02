@@ -125,7 +125,7 @@ def main():
 
     print("Cargando modelos... (la primera vez XTTS descarga ~2 GB)")
     stt = STT(config.WHISPER_MODELO, config.WHISPER_DEVICE, config.WHISPER_COMPUTE)
-    trad = Traductor(config.OLLAMA_MODELO, config.IDIOMAS)
+    trad = Traductor(config.LLM_MODELO, config.LLM_BASE_URL, config.LLM_API_KEY, config.IDIOMAS)
     voz = Voz(config.XTTS_DEVICE)
     subt = Subtitulos() if usar_subt else None
 

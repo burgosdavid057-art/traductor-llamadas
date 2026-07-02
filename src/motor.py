@@ -34,7 +34,7 @@ class Motor:
         self.on_estado("Cargando Whisper...")
         self.stt = STT(config.WHISPER_MODELO, config.WHISPER_DEVICE, config.WHISPER_COMPUTE)
         self.on_estado("Conectando con Ollama...")
-        self.trad = Traductor(config.OLLAMA_MODELO, config.IDIOMAS)
+        self.trad = Traductor(config.LLM_MODELO, config.LLM_BASE_URL, config.LLM_API_KEY, config.IDIOMAS)
         self.on_estado("Cargando voz (XTTS)...")
         self.voz = Voz(config.XTTS_DEVICE)
         self._cargado = True

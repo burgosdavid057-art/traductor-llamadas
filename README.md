@@ -1,126 +1,190 @@
-# 🎙️ Traductor de llamadas en tiempo real (100% local)
+<div align="center">
 
-Traduce en vivo lo que **tú hablas** y lo que **escuchas** en una llamada
-(Zoom / Meet / Discord / Teams), usando tu PC. La traducción de tu voz sale
-**clonada con tu propia voz** (XTTS-v2). Todo corre local: Whisper + Ollama + XTTS.
+# 🎙️ EchoLingua
 
-```
-TÚ ──→ micrófono → Whisper → Ollama → XTTS (TU voz) → VB-Cable → Zoom → ellos
-ELLOS ──→ loopback → Whisper → Ollama → 📺 subtítulos (+ 🔊 voz opcional) → tú
-```
+### Traductor de llamadas en tiempo real · 100 % local · con clonación de tu voz
 
-## ⚙️ Requisitos
-- Windows + Python 3.11 ✅ (ya lo tienes)
-- GPU NVIDIA (RTX 4050, ~6 GB) ✅
-- Ollama instalado ✅ — **debe estar corriendo** al usar la app
-- **VB-Audio Cable** (gratis) → el "micrófono falso" que oirá Zoom
+Habla en tu idioma y que la otra persona te escuche **en el suyo, con tu propia voz clonada**.
+Traduce en vivo las dos direcciones de una llamada (Zoom · Meet · Discord · Teams), sin enviar
+nada a la nube: todo corre en tu GPU.
+
+![Python](https://img.shields.io/badge/Python-3.11-3776AB?logo=python&logoColor=white)
+![CUDA](https://img.shields.io/badge/CUDA-12.1-76B900?logo=nvidia&logoColor=white)
+![Whisper](https://img.shields.io/badge/STT-faster--whisper-000000)
+![XTTS](https://img.shields.io/badge/TTS-XTTS--v2-FF6F00)
+![LLM](https://img.shields.io/badge/LLM-Ollama%20%2F%20vLLM-4B8BBE)
+![License](https://img.shields.io/badge/License-MIT-green)
+
+</div>
 
 ---
 
-## 📦 Instalación (una sola vez)
+## ✨ Qué hace
 
-> Orden importante: **torch con CUDA va primero**, antes que el resto.
+- 🗣️ **Traducción bidireccional en vivo** — lo que dices y lo que escuchas, en tiempo casi real.
+- 🎭 **Clonación de tu voz** — la otra persona te oye en otro idioma *con tu propia voz* (XTTS‑v2).
+- 🌍 **17 idiomas** seleccionables (es, en, pt, fr, de, it, ru, zh, ja, ko, ar, hi…).
+- 🔒 **100 % local y privado** — sin APIs de pago, sin nube, sin fugas de datos.
+- 🖥️ **Interfaz gráfica** con selección de idiomas/dispositivos e historial de conversación.
+- 🔌 **Backend LLM intercambiable** — Ollama en tu laptop, **vLLM** en un servidor GPU, sin tocar código.
+
+## 🎬 Demo
+
+> _(Espacio para tu GIF/video de demostración — ver `docs/DEMO.md`.)_
+
+---
+
+## 🏗️ Arquitectura
+
+Dos *pipelines* independientes corriendo en paralelo, cada uno en su hilo:
+
+```mermaid
+flowchart LR
+    subgraph SAL["🗣️  TÚ  →  ELLOS"]
+        M["🎤 Micrófono"] --> W1["Whisper<br/>voz → texto"]
+        W1 --> L1["LLM<br/>traducción"]
+        L1 --> X1["XTTS‑v2<br/>tu voz clonada"]
+        X1 --> VC["🔌 VB‑Cable<br/>→ Zoom"]
+    end
+    subgraph ENT["👂  ELLOS  →  TÚ"]
+        LB["🔉 Loopback<br/>audio de la llamada"] --> W2["Whisper<br/>voz → texto"]
+        W2 --> L2["LLM<br/>traducción"]
+        L2 --> UI["📺 Subtítulos<br/>+ 🔊 voz"]
+    end
+```
+
+**Decisión de diseño clave:** el LLM se consume vía **API compatible con OpenAI**, así que el
+mismo código sirve para [Ollama](https://ollama.com) (desarrollo local) y
+[vLLM](https://github.com/vllm-project/vllm) (producción en servidor GPU) — solo cambia una URL.
+
+### 🧱 Stack
+
+| Componente | Tecnología | Rol |
+|---|---|---|
+| **STT** | [faster-whisper](https://github.com/SYSTRAN/faster-whisper) (CTranslate2) | Voz → texto en GPU |
+| **Traducción** | [Ollama](https://ollama.com) / [vLLM](https://github.com/vllm-project/vllm) (OpenAI API) | Texto → texto |
+| **TTS + clonación** | [XTTS‑v2](https://github.com/idiap/coqui-ai-TTS) (Coqui) | Texto → tu voz, con *streaming* |
+| **VAD** | webrtcvad | Detecta fin de frase |
+| **Audio** | soundcard (WASAPI loopback) + VB‑Audio Cable | Captura y enrutado |
+| **GUI** | customtkinter | Panel de control |
+
+---
+
+## ⚡ Optimización de latencia (4 s → 1.4 s)
+
+El reto real de este proyecto no fue la IA, sino la **latencia**. Perfilando cada etapa:
+
+| Etapa | Antes | Después | Cómo |
+|---|---:|---:|---|
+| Síntesis de voz (XTTS) | 2.31 s | **0.37 s** | *streaming*: reproduce mientras genera (`inference_stream`) + caché de latentes |
+| Espera de fin de frase | 0.70 s | **0.35 s** | VAD más ágil |
+| Traducción (LLM) | 0.51 s | **0.36 s** | modelo pequeño + conexión persistente |
+| Voz → texto (Whisper) | 0.51 s | **0.18 s** | `int8_float16` en GPU |
+| **Total percibido** | **~4 s** | **~1.4 s** | |
+
+> El *streaming* de voz fue la clave: en vez de esperar a generar todo el audio, la otra
+> persona empieza a oírte en ~0.4 s. El resto es un piso inevitable (el sistema espera a que
+> termines la frase para traducir — funciona por turnos, como un intérprete humano).
+
+---
+
+## 🚀 Instalación
+
+> Requisitos: Windows · Python 3.11 · GPU NVIDIA (≥6 GB) · [Ollama](https://ollama.com) · [VB‑Audio Cable](https://vb-audio.com/Cable/)
 
 ```powershell
-cd "C:\Users\USER\OneDrive\Documentos\Desarrollo\ia\traductor-llamadas"
+git clone https://github.com/<tu-usuario>/echolingua.git
+cd echolingua
 
-# 1) Entorno virtual
 python -m venv .venv
 .\.venv\Scripts\Activate.ps1
 
-# 2) PyTorch + torchaudio CON CUDA (cu121)
+# 1) PyTorch + torchaudio con CUDA
 pip install torch==2.5.1 torchaudio==2.5.1 --index-url https://download.pytorch.org/whl/cu121
-
-# 3) El resto de dependencias
+# 2) El resto
 pip install -r requirements.txt
-
-# 4) Modelo de traducción en Ollama
+# 3) Modelo de traducción
 ollama pull qwen2.5:3b
 ```
 
-### VB-Audio Cable
-Descarga e instala desde https://vb-audio.com/Cable/ (gratis). Reinicia.
-Aparecerán dos dispositivos nuevos: **CABLE Input** (salida) y **CABLE Output** (entrada).
+Instala **VB‑Audio Cable** (crea el micrófono virtual hacia la app de llamadas) y reinicia.
+
+### Verificar el entorno
+```powershell
+python test_entorno.py      # debe dar 5/5
+```
+
+### Grabar tu voz (para clonarla)
+```powershell
+python grabar_voz.py        # habla ~15 s con naturalidad
+```
+
+## 🎧 Uso
+
+```powershell
+python app.py               # interfaz gráfica (recomendada)
+python main.py --tu es --ellos en   # o por terminal
+```
+
+En Zoom/Meet/Discord: **Micrófono → `CABLE Output`** · Altavoz → tu parlante normal.
 
 ---
 
-## ✅ Paso 1 — Probar el entorno
-```powershell
-python test_entorno.py
+## 🖧 Despliegue con vLLM (servidor GPU)
+
+Para servir el LLM con vLLM (alto rendimiento) en un servidor Linux con GPU:
+
+```bash
+# En el servidor
+pip install vllm
+vllm serve Qwen/Qwen2.5-3B-Instruct --port 8000 --api-key mi-clave
 ```
-Debe dar 5/5. Si algo falla, el propio test te dice qué arreglar.
 
-> **Error típico de cuDNN/cuBLAS en Whisper:** faster-whisper necesita las
-> librerías CUDA. Suele resolverse con:
-> `pip install nvidia-cublas-cu12 nvidia-cudnn-cu12`
+Y en `config.py` solo cambias el backend — **ninguna otra línea de código**:
 
-## ✅ Paso 2 — Grabar tu voz (para clonarla)
-```powershell
-python grabar_voz.py
+```python
+LLM_BASE_URL = "http://IP_DEL_SERVIDOR:8000/v1"
+LLM_MODELO   = "Qwen/Qwen2.5-3B-Instruct"
+LLM_API_KEY  = "mi-clave"
 ```
-Habla con naturalidad ~12 s. Se guarda en `voces/mi_voz.wav`.
-
-## ✅ Paso 3 — Ejecutar
-
-### Opción A — Interfaz gráfica (recomendada)
-```powershell
-python app.py
-```
-Abre una ventana donde eliges idiomas y dispositivos, activas/desactivas la voz
-del gringo y controlas todo con **▶ Iniciar / ⏹ Detener**. La conversación
-aparece traducida en pantalla (TÚ en azul, ELLOS en verde).
-
-### Opción B — Por terminal (CLI)
-```powershell
-python main.py --tu es --ellos en
-```
-- `--tu` = tu idioma · `--ellos` = idioma de la otra persona
-- Idiomas: es, en, pt, fr, de, it, ru, zh, ja, ko, ar, hi… (ver `config.py`)
-- `--sin-voz-entrante` → ellos solo en subtítulos (evita eco)
-- `--listar` → ver dispositivos de audio
-
----
-
-## 🎧 Configurar Zoom / Meet / Discord
-Para que **te oigan traducido**, en la app de la llamada:
-
-- **Micrófono → `CABLE Output`** (así reciben tu voz clonada, no la real)
-- **Altavoz → tus parlantes/audífonos normales**
-
-> El programa captura el *loopback* de tus parlantes para traducir lo que dicen ellos,
-> y envía tu voz traducida a `CABLE Input` (que Zoom ve como `CABLE Output`).
-
----
-
-## ⏱️ Qué esperar
-- Latencia ~2-4 s por frase (no es simultáneo perfecto).
-- Funciona por turnos: mientras suena una traducción, se pausa la captura para evitar eco.
-- Acentos fuertes, ruido o varias voces a la vez bajan la precisión.
-
-## 🔧 Ajustes en `config.py`
-| Si quieres… | Cambia |
-|---|---|
-| Más precisión (más VRAM) | `WHISPER_MODELO = "medium"` o `OLLAMA_MODELO = "qwen2.5:7b"` |
-| Menos latencia | `SILENCIO_MS` más bajo (p.ej. 500) |
-| Liberar VRAM | `XTTS_DEVICE = "cpu"` (más lento) |
-| Otra voz para la traducción entrante | `REF_VOZ_ELLOS` a otro .wav |
 
 ## 🗂️ Estructura
+
 ```
-traductor-llamadas/
-├─ app.py              # interfaz gráfica (entrada recomendada)
-├─ main.py             # CLI (terminal)
-├─ config.py           # idiomas, modelos, dispositivos, calidad/latencia
+echolingua/
+├─ app.py              # interfaz gráfica (entrada principal)
+├─ main.py             # CLI
+├─ config.py           # idiomas, modelos, backend LLM, latencia
 ├─ grabar_voz.py       # graba tu muestra de voz
-├─ test_entorno.py     # valida que todo funcione
-├─ requirements.txt
+├─ test_entorno.py     # valida el entorno (5 checks)
 └─ src/
    ├─ motor.py         # núcleo: modelos + 2 flujos (iniciar/detener)
    ├─ gui.py           # ventana customtkinter
-   ├─ dispositivos.py  # selección de mic/parlantes (ignora el cable)
+   ├─ traductor.py     # cliente LLM (OpenAI-compatible: Ollama/vLLM)
+   ├─ voz.py           # XTTS‑v2 con streaming + caché de voz
+   ├─ stt.py           # faster-whisper
    ├─ audio.py         # captura + VAD (segmentación por voz)
-   ├─ stt.py           # Whisper (voz→texto)
-   ├─ traductor.py     # Ollama (texto→texto)
-   ├─ voz.py           # XTTS-v2 (texto→voz clonada, con streaming)
-   └─ subtitulos.py    # overlay flotante (solo para el CLI)
+   └─ dispositivos.py  # selección robusta de mic/parlantes
 ```
+
+## ⚠️ Limitaciones (honestas)
+
+- Funciona **por turnos**, no es simultáneo perfecto: ~1.4 s de latencia por frase.
+- Acentos muy marcados, ruido o varias voces a la vez bajan la precisión.
+- La dirección "entrante" requiere una **llamada real** (la voz del otro debe salir por tus parlantes).
+- Pensado para Windows + GPU NVIDIA; en otras plataformas hay que ajustar la captura de audio.
+
+## 🗺️ Roadmap
+
+- [ ] Empaquetar como ejecutable (PyInstaller) para no depender de la terminal.
+- [ ] Historial exportable de la conversación.
+- [ ] Modo "solo subtítulos" ultraligero para equipos sin GPU potente.
+- [ ] Soporte multiplataforma (Linux/macOS) para la captura de audio.
+
+## 📄 Licencia
+
+MIT © 2026 David Burgos — ver [LICENSE](LICENSE).
+
+<div align="center">
+<sub>Construido con Whisper · XTTS‑v2 · Ollama/vLLM · 100 % local 🔒</sub>
+</div>

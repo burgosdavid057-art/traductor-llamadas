@@ -17,8 +17,15 @@ IDIOMA_ELLOS = "en"
 WHISPER_MODELO  = "small"
 WHISPER_DEVICE  = "cuda"
 WHISPER_COMPUTE = "int8_float16"
-OLLAMA_MODELO   = "qwen2.5:3b"
 XTTS_DEVICE     = "cuda"
+
+# ─── Backend del LLM (API compatible con OpenAI) ───────────────────
+# El mismo codigo funciona con Ollama (local) o vLLM (servidor). Solo cambias esto:
+#   Ollama local:   LLM_BASE_URL="http://localhost:11434/v1"  LLM_MODELO="qwen2.5:3b"
+#   vLLM servidor:  LLM_BASE_URL="http://TU_SERVIDOR:8000/v1" LLM_MODELO="Qwen/Qwen2.5-3B-Instruct"
+LLM_BASE_URL = "http://localhost:11434/v1"
+LLM_API_KEY  = "no-auth"          # Ollama la ignora; vLLM usa la que configures
+LLM_MODELO   = "qwen2.5:3b"
 
 XTTS_TEMPERATURE   = 0.55
 XTTS_REP_PENALTY   = 5.0

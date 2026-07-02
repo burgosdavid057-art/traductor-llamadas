@@ -48,22 +48,19 @@ def check_whisper():
 
 
 def check_ollama():
-    print("\n[3/5] Ollama (traduccion)")
+    print("\n[3/5] LLM traduccion (backend OpenAI-compatible)")
     try:
-        import config, ollama
-        modelos = [m.model for m in ollama.list().models]
-        if config.OLLAMA_MODELO not in modelos and \
-           config.OLLAMA_MODELO not in [x.split(":")[0] for x in modelos]:
-            print(f"   {FAIL} falta el modelo. Ejecuta:  ollama pull {config.OLLAMA_MODELO}")
-            print(f"      modelos disponibles: {modelos}")
-            return False
-        r = ollama.chat(model=config.OLLAMA_MODELO,
-                        messages=[{"role": "user", "content": "Di 'ok' y nada mas."}])
-        print(f"   {OK} responde: {r['message']['content'].strip()[:40]}")
+        import config
+        from src.traductor import Traductor
+        print(f"   backend: {config.LLM_BASE_URL}  modelo: {config.LLM_MODELO}")
+        trad = Traductor(config.LLM_MODELO, config.LLM_BASE_URL, config.LLM_API_KEY, config.IDIOMAS)
+        r = trad.traducir("Hola, mucho gusto.", "es", "en")
+        print(f"   {OK} responde: {r[:50]}")
         return True
     except Exception as e:
         print(f"   {FAIL} {e}")
-        print("      Esta corriendo Ollama? Abre la app o ejecuta 'ollama serve'.")
+        print("      Backend caido? Con Ollama: abre la app / 'ollama serve'.")
+        print(f"      Con vLLM: verifica que el servidor este en {config.LLM_BASE_URL}")
         return False
 
 
